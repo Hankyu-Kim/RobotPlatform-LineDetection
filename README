@@ -1,2 +1,3 @@
-<img width="700px" src="./profile/wego.png" />
+<img width="700px" src="/profile/wego.png" />
+
 this is self-driving project using LIMO platform by ros
