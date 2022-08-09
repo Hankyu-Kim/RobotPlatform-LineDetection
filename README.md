@@ -1,5 +1,5 @@
-<img width="700px" src="./profile/wego.jpg" />
+<img width="700px" src="./wego.jpg" />
 
-![wego](./profile/wego.jpg)
+![wego](./wego.jpg)
 
 this is self-driving project using LIMO platform by ros
