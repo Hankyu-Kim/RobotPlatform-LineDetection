@@ -24,8 +24,13 @@ class line_tracing():
     def wrapping(self, image):
         (h, w) = (image.shape[0], image.shape[1])
 
-        source = np.float32([[w // 2 - 60, h * 0.50], [w // 2 + 60, h * 0.50], [0, h], [w, h]])
-        destination = np.float32([[0, 0], [w-350, 0], [400, h], [w-150, h]])
+        # image=image.copy()[240:480][:][:]
+        topleft = [w // 2 - 59, h * 0.57]
+        topright = [w // 2 - 25, h * 0.57]
+        bottomleft = [w * 0.10, h * 0.90]
+        bottomright = [w * 0.99, h * 0.90]
+        source = np.float32([topleft, topright, bottomleft, bottomright])
+        destination = np.float32([[0, 0], [200, 0], [200, h * 0.90], [w, h * 0.90]])
 
         transform_matrix = cv2.getPerspectiveTransform(source, destination)
         minv = cv2.getPerspectiveTransform(destination, source)
@@ -56,7 +61,7 @@ class line_tracing():
     
         cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
-        # crop_image=cv_image.copy()[240:480][:][:]
+        
         # cv2.imshow("crop_image", crop_image)
         # cv2.line(crop_image, (300, 200), (640, 400), (255, 0,0))
         
@@ -75,10 +80,10 @@ class line_tracing():
         cv2.imshow("Simulator_Image",image)
         cv2.imshow("lane_image",lane_image)
         
-        channel_1, channel_2, channel_3= cv2.split(image)
-        cv2.imshow("Simulator_Image, 1",channel_1)
-        cv2.imshow("Simulator_Image, 2",channel_2)
-        cv2.imshow("Simulator_Image, 3",channel_3)
+        # channel_1, channel_2, channel_3= cv2.split(image)
+        # cv2.imshow("Simulator_Image, 1",channel_1)
+        # cv2.imshow("Simulator_Image, 2",channel_2)
+        # cv2.imshow("Simulator_Image, 3",channel_3)
         cv2.waitKey(1)
 
         return lane_image
