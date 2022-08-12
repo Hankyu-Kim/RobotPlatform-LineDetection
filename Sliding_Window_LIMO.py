@@ -39,46 +39,15 @@ class line_tracing():
         return _image, minv
 
     def camera_callback(self, image): 
-
-        if self.initialized == False:
-            cv2.namedWindow("Simulator_Image", cv2.WINDOW_NORMAL)
-            cv2.createTrackbar('low_H', 'Simulator_Image', 0, 255, nothing)
-            cv2.createTrackbar('low_S', 'Simulator_Image', 0, 255, nothing)
-            cv2.createTrackbar('low_V', 'Simulator_Image', 0, 255, nothing)
-            cv2.createTrackbar('high_H', 'Simulator_Image', 255, 255, nothing)
-            cv2.createTrackbar('high_S', 'Simulator_Image', 255, 255, nothing)
-            cv2.createTrackbar('high_V', 'Simulator_Image', 255, 255, nothing)
-            self.initialized = True
-            
-        # rospy.loginfo(len(image.data)) #_data length is 54000
-        # rospy.loginfo(type(image.data)) #_data is string type -> buffer
-        # rospy.loginfo(type(image)) #type numpy.ndarray, length 480, dim 3
-        
-        #R= cv2.getTrackbarPos('R', 'Simulator_Image')
-        #G=cv2.getTrackbarPos('G', 'Simulator_Image')
-        #B=cv2.getTrackbarPos('B', 'Simulator_Image')
-      
     
         cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
+        lower_lane=np.array([0, 105, 107])
+        upper_lane =np.array([109, 255, 255])
         
-        # cv2.imshow("crop_image", crop_image)
-        # cv2.line(crop_image, (300, 200), (640, 400), (255, 0,0))
-        
-        low_H= cv2.getTrackbarPos('low_H', 'Simulator_Image')
-        low_S=cv2.getTrackbarPos('low_S', 'Simulator_Image')
-        low_V=cv2.getTrackbarPos('low_V', 'Simulator_Image')
-        high_H= cv2.getTrackbarPos('high_H', 'Simulator_Image')
-        high_S=cv2.getTrackbarPos('high_S', 'Simulator_Image')
-        high_V=cv2.getTrackbarPos('high_V', 'Simulator_Image')
-        lower_lane=np.array([low_H,low_S,low_V])
-        upper_lane =np.array([high_H,high_S,high_V])
-        
-        
-        lane_image = cv2.inRange(image, lower_lane, upper_lane) #final result
-    
-        cv2.imshow("Simulator_Image",image)
-        cv2.imshow("lane_image",lane_image)
+        lane_image = cv2.inRange(image, lower_lane, upper_lane)
+
+        # cv2.imshow("lane_image",lane_image)
         
         # channel_1, channel_2, channel_3= cv2.split(image)
         # cv2.imshow("Simulator_Image, 1",channel_1)
@@ -92,9 +61,9 @@ class line_tracing():
     def roi(self, image):
         x = int(image.shape[1])
         y = int(image.shape[0])
-
+        
         _shape = np.array(
-            [[int(0.1*x), int(y)], [int(0.1*x), int(0.1*y)], [int(0.4*x), int(0.1*y)], [int(0.4*x), int(y)], [int(0.7*x), int(y)], [int(0.7*x), int(0.1*y)],[int(0.9*x), int(0.1*y)], [int(0.9*x), int(y)], [int(0.2*x), int(y)]])
+        [[int(0.0*x), int(y)], [int(0.0*x), int(0.1*y)], [int(0.2*x), int(0.1*y)], [int(0.2*x), int(y)], [int(0.8*x), int(y)], [int(0.8*x), int(0.1*y)],[int(1.0*x), int(0.1*y)], [int(1.0*x), int(y)], [int(0.2*x), int(y)]])
 
         mask = np.zeros_like(image)
 
@@ -216,7 +185,7 @@ class line_tracing():
         # cv2.imshow('w_f_img', w_f_img)
 
         w_f_r_img = self.roi(w_f_img)
-        # cv2.imshow('w_f_r_img', w_f_r_img)
+        cv2.imshow('w_f_r_img', w_f_r_img)
 
         # _gray = cv2.cvtColor(w_f_r_img, cv2.COLOR_BGR2GRAY)
         ret, thresh = cv2.threshold(w_f_r_img, 160, 255, cv2.THRESH_BINARY)
