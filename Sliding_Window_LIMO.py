@@ -122,10 +122,11 @@ class line_tracing():
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
 
-        ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
+        ploty = np.linspace(0, binary_warped.shape[0] - 10, 30)
         left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
         right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
+        ploty = np.trunc(ploty)
         ltx = np.trunc(left_fitx)
         rtx = np.trunc(right_fitx)
 
@@ -170,7 +171,7 @@ class line_tracing():
 
         # _gray = cv2.cvtColor(w_f_r_img, cv2.COLOR_BGR2GRAY)
         ret, thresh = cv2.threshold(w_f_r_img, 160, 255, cv2.THRESH_BINARY)
-        cv2.imshow('threshold', thresh)
+        # cv2.imshow('threshold', thresh)
 
         leftbase, rightbase = self.plothistogram(thresh)
         # plt.plot(hist)
