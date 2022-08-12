@@ -1,26 +1,30 @@
 #! /usr/bin/env python2
 
 import rospy
-from sensor_msgs.msg import CompressedImage
-from cv_bridge import CvBridge  # rosimage -> opencv image
+from sensor_msgs.msg import CompressedImage 
+from cv_bridge import CvBridge # rosimage -> opencv image
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 
 
+
+
+
 class line_tracing():
-    def __init__(self):
+    def __init__(self):        
         # self.masked_img_publisher = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
 
-        self.webcam_img_subscriber = rospy.Subscriber("/camera/rgb/image_rect_color/compressed", CompressedImage,
-                                                      self.callback)
+        self.webcam_img_subscriber = rospy.Subscriber("/camera/rgb/image_rect_color/compressed", CompressedImage, self.callback)
+        
+        self.bridge = CvBridge() # CvBridge 
+        self.initialized=False
 
     def wrapping(self, image):
         (h, w) = (image.shape[0], image.shape[1])
 
-        # image=image.copy()[240:480][:][:]
-        topleft = [w // 2 - 59, h * 0.57]
+        topleft = [w // 2 - 60, h * 0.57]
         topright = [w // 2 - 25, h * 0.57]
         bottomleft = [w * 0.10, h * 0.90]
         bottomright = [w * 0.99, h * 0.90]
@@ -33,51 +37,39 @@ class line_tracing():
 
         return _image, minv
 
-    def camera_callback(self, image):
-
+    def camera_callback(self, image): 
+    
         cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-        lower_lane = np.array([0, 105, 107])
-        upper_lane = np.array([109, 255, 255])
-
+        
+        lower_lane=np.array([0, 143, 104])
+        upper_lane =np.array([138, 255, 255])
+        
         lane_image = cv2.inRange(image, lower_lane, upper_lane)
 
         cv2.waitKey(1)
 
         return lane_image
+    
 
     def roi(self, image):
         x = int(image.shape[1])
         y = int(image.shape[0])
-
+        
         _shape = np.array(
-            [[int(0.0 * x), int(y)], [int(0.0 * x), int(0.1 * y)], [int(0.2 * x), int(0.1 * y)], [int(0.2 * x), int(y)],
-             [int(0.8 * x), int(y)], [int(0.8 * x), int(0.1 * y)], [int(1.0 * x), int(0.1 * y)], [int(1.0 * x), int(y)],
-             [int(0.2 * x), int(y)]])
+        [[int(0.0*x), int(y)], [int(0.0*x), int(0.1*y)], [int(0.2*x), int(0.1*y)], [int(0.2*x), int(y)], [int(0.8*x), int(y)], [int(0.8*x), int(0.1*y)],[int(1.0*x), int(0.1*y)], [int(1.0*x), int(y)], [int(0.2*x), int(y)]])
 
         mask = np.zeros_like(image)
 
-        if len(image.shape) > 2:
-            channel_count = image.shape[2]
-            ignore_mask_color = (255,) * channel_count
-        else:
-            ignore_mask_color = 255
+        ignore_mask_color = 255
 
         cv2.fillPoly(mask, np.int32([_shape]), ignore_mask_color)
         masked_image = cv2.bitwise_and(image, mask)
 
         return masked_image
 
-    def wrapped_img_threshold(self, w_f_r_img):
-        _gray = cv2.cvtColor(w_f_r_img, cv2.COLOR_BGR2GRAY)
-
-        # ret, thresh = output 1, 2
-
-        return cv2.threshold(_gray, 160, 255, cv2.THRESH_BINARY)
-
     def plothistogram(self, image):
-        histogram = np.sum(image[image.shape[0] // 2:, :], axis=0)
-        midpoint = int(histogram.shape[0] / 2)
+        histogram = np.sum(image[image.shape[0]//2:, :], axis=0)
+        midpoint = int(histogram.shape[0]/2)
         leftbase = np.argmax(histogram[:midpoint])
         rightbase = np.argmax(histogram[midpoint:]) + midpoint
 
@@ -104,14 +96,12 @@ class line_tracing():
             win_xleft_low = left_current - margin
             win_xleft_high = left_current + margin
             win_xright_low = right_current - margin
-            win_xright_high = right_current + margin
+            win_xright_high = right_current + margin 
 
             cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), color, thickness)
             cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), color, thickness)
-            good_left = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xleft_low) & (
-                        nonzero_x < win_xleft_high)).nonzero()[0]
-            good_right = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xright_low) & (
-                        nonzero_x < win_xright_high)).nonzero()[0]
+            good_left = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xleft_low) & (nonzero_x < win_xleft_high)).nonzero()[0]
+            good_right = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xright_low) & (nonzero_x < win_xright_high)).nonzero()[0]
             left_lane.append(good_left)
             right_lane.append(good_right)
             # cv2.imshow("oo", out_img)
@@ -149,7 +139,7 @@ class line_tracing():
         # plt.ylim(720, 0)
         # plt.show()
 
-        ret = {'left_fitx': ltx, 'right_fitx': rtx, 'ploty': ploty}
+        ret = {'left_fitx' : ltx, 'right_fitx': rtx, 'ploty': ploty}
 
         return ret
 
@@ -161,11 +151,13 @@ class line_tracing():
         mean_x = np.mean((left_fitx, right_fitx), axis=0)
         pts_mean = np.array([np.flipud(np.transpose(np.vstack([mean_x, ploty])))])
 
+
+
         return pts_mean
 
     def callback(self, _data):
 
-        img = CvBridge.compressed_imgmsg_to_cv2(_data, desired_encoding='passthrough')
+        img = self.bridge.compressed_imgmsg_to_cv2(_data, desired_encoding='passthrough')
 
         wrapped_img, minverse = self.wrapping(img)
         # cv2.imshow('wrapped', wrapped_img)
@@ -174,11 +166,11 @@ class line_tracing():
         # cv2.imshow('w_f_img', w_f_img)
 
         w_f_r_img = self.roi(w_f_img)
-        cv2.imshow('w_f_r_img', w_f_r_img)
+        # cv2.imshow('w_f_r_img', w_f_r_img)
 
         # _gray = cv2.cvtColor(w_f_r_img, cv2.COLOR_BGR2GRAY)
         ret, thresh = cv2.threshold(w_f_r_img, 160, 255, cv2.THRESH_BINARY)
-        # cv2.imshow('threshold', thresh)
+        cv2.imshow('threshold', thresh)
 
         leftbase, rightbase = self.plothistogram(thresh)
         # plt.plot(hist)
@@ -193,14 +185,13 @@ class line_tracing():
 
 
 def nothing():
-    pass
-
+    pass       
 
 def run():
     rospy.init_node("line_tracing_example")
     new_class = line_tracing()
     rospy.spin()
+    
 
-
-if __name__ == '__main__':
+if __name__=='__main__':
     run()
