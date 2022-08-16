@@ -1,14 +1,13 @@
-#! /usr/bin/env python2
-
+#! /usr/bin/env python3
+# coding=UTF-8
 import rospy
 from sensor_msgs.msg import CompressedImage 
 from cv_bridge import CvBridge # rosimage -> opencv image
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+
+from pylimo import limo
 import time
-
-
 
 
 
@@ -20,6 +19,8 @@ class line_tracing():
         
         self.bridge = CvBridge() # CvBridge 
         self.initialized=False
+        global limo
+        limo=limo.LIMO()
 
     def wrapping(self, image):
         (h, w) = (image.shape[0], image.shape[1])
@@ -156,6 +157,21 @@ class line_tracing():
 
         return pts_mean
 
+    
+    def move(self, meanPts):
+        # global limo
+        # limo=limo.LIMO()
+        limo.EnableCommand()
+        num=5
+        quo_arr=meanPts.astype(int)
+        quo=quo_arr[0, 0, 0]
+
+        while num>0:
+
+            limo.SetMotionCommand(linear_x=0.1,angular_z=(quo-300)//300)
+            time.sleep(0.3)
+            num -=1
+
     def callback(self, _data):
 
         img = self.bridge.compressed_imgmsg_to_cv2(_data, desired_encoding='passthrough')
@@ -183,6 +199,9 @@ class line_tracing():
         meanPts = self.how_much_curved(draw_info)
         rospy.loginfo(meanPts)
 
+        self.move(meanPts)
+
+
 
 def nothing():
     pass       
@@ -190,7 +209,7 @@ def nothing():
 def run():
     rospy.init_node("line_tracing_example")
     new_class = line_tracing()
-    rospy.spin()
+    rospy.spinOnce()
     
 
 if __name__=='__main__':
