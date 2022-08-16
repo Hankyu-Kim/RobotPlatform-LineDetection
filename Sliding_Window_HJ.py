@@ -1,13 +1,12 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 # coding=UTF-8
 import rospy
-from sensor_msgs.msg import CompressedImage 
-from cv_bridge import CvBridge # rosimage -> opencv image
+from sensor_msgs.msg import Image, CompressedImage 
+# from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from cv_bridge import CvBridge, CvBridgeError # rosimage -> opencv image
 import cv2
 import numpy as np
-
-from pylimo import limo
-import time
 
 
 
@@ -16,41 +15,35 @@ class line_tracing():
         # self.masked_img_publisher = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
 
         self.webcam_img_subscriber = rospy.Subscriber("/camera/rgb/image_rect_color/compressed", CompressedImage, self.callback)
-        
+        # self.pub = rospy.Publisher('/filtered_image', CompressedImage, queue_size=5)
+        # self.pub1 = rospy.Publisher('/test', String, queue_size=5)
+        self.pub2 = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
+
         self.bridge = CvBridge() # CvBridge 
         self.initialized=False
-        global limo
-        limo=limo.LIMO()
+
+        self.lower_lane=np.array([0, 143, 104]) #camera_callback variables
+        self.upper_lane =np.array([138, 255, 255])
+
+        self.topleft = [260, 273] #wrapping variables
+        self.topright = [295, 273]
+        self.bottomleft = [64, 432]
+        self.bottomright = [633,432]
+        self.topleft2 = [0, 0]
+        self.topright2 = [200, 0]
+        self.bottomleft2 = [200, 432]
+        self.bottomright2 = [640, 432]
+        self.source = np.float32([self.topleft, self.topright, self.bottomleft, self.bottomright])
+        self.destination = np.float32([self.topleft2, self.topright2, self.bottomleft2, self.bottomright2])
 
     def wrapping(self, image):
         (h, w) = (image.shape[0], image.shape[1])
 
-        topleft = [w // 2 - 60, h * 0.57]
-        topright = [w // 2 - 25, h * 0.57]
-        bottomleft = [w * 0.10, h * 0.90]
-        bottomright = [w * 0.99, h * 0.90]
-        source = np.float32([topleft, topright, bottomleft, bottomright])
-        destination = np.float32([[0, 0], [200, 0], [200, h * 0.90], [w, h * 0.90]])
-
-        transform_matrix = cv2.getPerspectiveTransform(source, destination)
-        minv = cv2.getPerspectiveTransform(destination, source)
+        transform_matrix = cv2.getPerspectiveTransform(self.source, self.destination)
+        minv = cv2.getPerspectiveTransform(self.destination, self.source)
         _image = cv2.warpPerspective(image, transform_matrix, (w, h))
 
         return _image, minv
-
-    def camera_callback(self, image): 
-    
-        cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        
-        lower_lane=np.array([0, 143, 104])
-        upper_lane =np.array([138, 255, 255])
-        
-        lane_image = cv2.inRange(image, lower_lane, upper_lane)
-
-        cv2.waitKey(1)
-
-        return lane_image
-    
 
     def roi(self, image):
         x = int(image.shape[1])
@@ -68,6 +61,25 @@ class line_tracing():
 
         return masked_image
 
+    def camera_callback(self, image): 
+    
+        cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+        lane_image = cv2.inRange(image, self.lower_lane, self.upper_lane)
+
+        M = cv2.moments(lane_image)
+        if M['m00'] != 0:
+            self.x = int(M['m10']/M['m00'])
+            self.y = int(M['m01']/M['m00'])
+        else:
+            self.x = 0
+            self.y = 0
+        cv2.circle(image, (self.x, self.y), 5, (0, 0, 255), -1)
+        # cv2.imshow('image+dot', lane_image)
+        cv2.waitKey(1)
+
+        return lane_image
+
     def plothistogram(self, image):
         histogram = np.sum(image[image.shape[0]//2:, :], axis=0)
         midpoint = int(histogram.shape[0]/2)
@@ -82,6 +94,7 @@ class line_tracing():
         nwindows = 4
         window_height = int(binary_warped.shape[0] / nwindows)
         nonzero = binary_warped.nonzero()
+
         nonzero_y = np.array(nonzero[0])
         nonzero_x = np.array(nonzero[1])
         margin = 100
@@ -99,8 +112,8 @@ class line_tracing():
             win_xright_low = right_current - margin
             win_xright_high = right_current + margin 
 
-            cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), color, thickness)
-            cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), color, thickness)
+            # cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), color, thickness)
+            # cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), color, thickness)
             good_left = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xleft_low) & (nonzero_x < win_xleft_high)).nonzero()[0]
             good_right = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xright_low) & (nonzero_x < win_xright_high)).nonzero()[0]
             left_lane.append(good_left)
@@ -151,65 +164,53 @@ class line_tracing():
         ploty = draw_info['ploty']
 
         mean_x = np.mean((left_fitx, right_fitx), axis=0)
-        pts_mean = np.array([np.flipud(np.transpose(np.vstack([mean_x, ploty])))])
-
-
+        pts_mean = np.flipud(np.transpose(np.vstack([mean_x, ploty])))
 
         return pts_mean
 
-    
     def move(self, meanPts):
-        # global limo
-        # limo=limo.LIMO()
-        limo.EnableCommand()
-        num=5
         quo_arr=meanPts.astype(int)
-        quo=quo_arr[0, 0, 0]
+        quo=quo_arr[0, 0]
+        msg = Twist()
 
-        while num>0:
-
-            limo.SetMotionCommand(linear_x=0.1,angular_z=(quo-300)//300)
-            time.sleep(0.3)
-            num -=1
+        msg.linear.x=0.1
+        # msg.angular.z=0.2
+        msg.angular.z=((quo-300)//450)/10
+        self.pub2.publish(msg)
 
     def callback(self, _data):
 
         img = self.bridge.compressed_imgmsg_to_cv2(_data, desired_encoding='passthrough')
 
-        wrapped_img, minverse = self.wrapping(img)
-        # cv2.imshow('wrapped', wrapped_img)
+        # wrapped_img, minverse = self.wrapping(img)
 
-        w_f_img = self.camera_callback(wrapped_img)
-        # cv2.imshow('w_f_img', w_f_img)
+        w_f_img = self.camera_callback(img)
 
         w_f_r_img = self.roi(w_f_img)
-        # cv2.imshow('w_f_r_img', w_f_r_img)
-
+        
         ret, thresh = cv2.threshold(w_f_r_img, 160, 255, cv2.THRESH_BINARY)
-        cv2.imshow('threshold', thresh)
-
+        
         leftbase, rightbase = self.plothistogram(thresh)
-        # plt.plot(hist)
-        # plt.show()
 
         draw_info = self.slide_window_search(thresh, leftbase, rightbase)
-        # plt.plot(left_fit)
-        # plt.show()
-
+        
         meanPts = self.how_much_curved(draw_info)
-        rospy.loginfo(meanPts)
+        # rospy.loginfo(meanPts)
 
         self.move(meanPts)
 
+        # print('here')
+        # self.pub1.publish('test')
 
-
-def nothing():
-    pass       
+        # try:
+        #     self.pub.publish(self.bridge.cv2_to_imgmsg(w_f_img, "8UC1"))
+        # except CvBridgeError as e:
+        #     print(e)
 
 def run():
     rospy.init_node("line_tracing_example")
     new_class = line_tracing()
-    rospy.spinOnce()
+    rospy.spin()
     
 
 if __name__=='__main__':
