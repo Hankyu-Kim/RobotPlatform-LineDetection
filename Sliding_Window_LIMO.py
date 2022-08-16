@@ -169,9 +169,8 @@ class line_tracing():
         w_f_r_img = self.roi(w_f_img)
         # cv2.imshow('w_f_r_img', w_f_r_img)
 
-        # _gray = cv2.cvtColor(w_f_r_img, cv2.COLOR_BGR2GRAY)
         ret, thresh = cv2.threshold(w_f_r_img, 160, 255, cv2.THRESH_BINARY)
-        # cv2.imshow('threshold', thresh)
+        cv2.imshow('threshold', thresh)
 
         leftbase, rightbase = self.plothistogram(thresh)
         # plt.plot(hist)
