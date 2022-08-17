@@ -47,7 +47,7 @@ class line_tracing():
 
     def camera_callback(self, image): 
 
-        image = image[345:1080, 0:720]
+        image = image[360:1080, 0:360]
     
         cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
@@ -105,7 +105,6 @@ class line_tracing():
         margin = 100
         minpix = 50
         left_lane = []
-        right_lane = []
         color = [0, 255, 0]
         thickness = 2
 
@@ -114,43 +113,31 @@ class line_tracing():
             win_y_high = binary_warped.shape[0] - w * window_height
             win_xleft_low = left_current - margin
             win_xleft_high = left_current + margin
-            win_xright_low = right_current - margin
-            win_xright_high = right_current + margin 
+
 
             # cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), color, thickness)
             # cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), color, thickness)
             good_left = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xleft_low) & (nonzero_x < win_xleft_high)).nonzero()[0]
-            good_right = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xright_low) & (nonzero_x < win_xright_high)).nonzero()[0]
             left_lane.append(good_left)
-            right_lane.append(good_right)
             # cv2.imshow("oo", out_img)
 
             if len(good_left) > minpix:
                 left_current = int(np.mean(nonzero_x[good_left]))
-            if len(good_right) > minpix:
-                right_current = int(np.mean(nonzero_x[good_right]))
 
         left_lane = np.concatenate(left_lane)
-        right_lane = np.concatenate(right_lane)
 
         leftx = nonzero_x[left_lane]
         lefty = nonzero_y[left_lane]
-        rightx = nonzero_x[right_lane]
-        righty = nonzero_y[right_lane]
 
         left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
 
         ploty = np.linspace(0, binary_warped.shape[0] - 10, 2)
         left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
         ploty = np.trunc(ploty)
         ltx = np.trunc(left_fitx)
-        rtx = np.trunc(right_fitx)
 
         out_img[nonzero_y[left_lane], nonzero_x[left_lane]] = [255, 0, 0]
-        out_img[nonzero_y[right_lane], nonzero_x[right_lane]] = [0, 0, 255]
 
         # plt.imshow(out_img)
         # plt.plot(left_fitx, ploty, color = 'yellow')
@@ -159,33 +146,28 @@ class line_tracing():
         # plt.ylim(720, 0)
         # plt.show()
 
-        ret = {'left_fitx' : ltx, 'right_fitx': rtx, 'ploty': ploty}
+        # ret = {'left_fitx' : ltx, 'ploty': ploty}
 
-        return ret
+        return ltx
 
-    def how_much_curved(self, draw_info):
-        left_fitx = draw_info['left_fitx']
-        right_fitx = draw_info['right_fitx']
-        ploty = draw_info['ploty']
+    # def how_much_curved(self, draw_info):
+    #     left_fitx = draw_info['left_fitx']
+    #     ploty = draw_info['ploty']
 
-        mean_x = np.mean((left_fitx, right_fitx), axis=0)
-        pts_mean = np.flipud(np.transpose(np.vstack([mean_x, ploty])))
+    #     mean_x = np.mean((left_fitx, right_fitx), axis=0)
+    #     pts_mean = np.flipud(np.transpose(np.vstack([mean_x, ploty])))
 
-        return pts_mean
+    #     return pts_mean
 
-    def move(self, meanPts, right_lane_x):
+    def move(self, ltx, right_lane_x):
         msg = Twist()
-        gradient = meanPts[0, 0]
-        # rospy.loginfo(gradient)
+        gradient = round((-ltx[0]+160)/320, 1)
+        # rospy.loginfo(ltx[0])
 
         msg.linear.x=0.5
         # msg.angular.z=0.2
         # msg.angular.z=(-right_lane_x+115)/50 #dot_tracing
-        msg.angular.z=(-gradient+300)/100 #line_tracing
-        if msg.angular.z >= 1.0:
-            msg.angular.z = 1.0
-        elif msg.angular.z <= -1.0:
-            msg.angular.z = -1.0
+        msg.angular.z=gradient #line_tracing
         # rospy.loginfo((-gradient+280)/100)
         self.pub2.publish(msg)
 
@@ -205,12 +187,12 @@ class line_tracing():
 
         leftbase, rightbase = self.plothistogram(thresh)
 
-        draw_info = self.slide_window_search(thresh, leftbase, rightbase)
+        ltx = self.slide_window_search(thresh, leftbase, rightbase)
         
-        meanPts = self.how_much_curved(draw_info)
+        # meanPts = self.how_much_curved(draw_info)
         # rospy.loginfo(meanPts)
 
-        self.move(meanPts, right_lane_x)
+        self.move(ltx, right_lane_x)
 
         # print('here')
         # self.pub1.publish('test')
