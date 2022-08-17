@@ -45,23 +45,9 @@ class line_tracing():
 
         return _image, minv
 
-    def roi(self, image):
-        x = int(image.shape[1])
-        y = int(image.shape[0])
-        
-        _shape = np.array(
-        [[int(0.0*x), int(y)], [int(0.0*x), int(0.1*y)], [int(0.2*x), int(0.1*y)], [int(0.2*x), int(y)], [int(0.8*x), int(y)], [int(0.8*x), int(0.1*y)],[int(1.0*x), int(0.1*y)], [int(1.0*x), int(y)], [int(0.2*x), int(y)]])
-
-        mask = np.zeros_like(image)
-
-        ignore_mask_color = 255
-
-        cv2.fillPoly(mask, np.int32([_shape]), ignore_mask_color)
-        masked_image = cv2.bitwise_and(image, mask)
-
-        return masked_image
-
     def camera_callback(self, image): 
+
+        image = image[360:1080, 0:360]
     
         cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
@@ -74,11 +60,30 @@ class line_tracing():
         else:
             self.x = 0
             self.y = 0
-        cv2.circle(image, (self.x, self.y), 5, (0, 0, 255), -1)
+        cv2.circle(image, (self.x, self.y), 25, (0, 0, 0), -1)
         # cv2.imshow('image+dot', lane_image)
         cv2.waitKey(1)
 
-        return lane_image
+        # rospy.loginfo(self.x)
+        
+        return lane_image, self.x
+
+    def roi(self, image):
+        x = int(image.shape[1])
+        y = int(image.shape[0])
+        
+        _shape = np.array(
+        [[int(0.0*x), int(y)], [int(0.0*x), int(0.85*y)], [int(1.0*x), int(0.85*y)], [int(1.0*x), int(y)], [int(0.0*x), int(y)]])
+
+        mask = np.zeros_like(image)
+
+        ignore_mask_color = 255
+
+        cv2.fillPoly(mask, np.int32([_shape]), ignore_mask_color)
+        masked_image = cv2.bitwise_and(image, mask)
+        # cv2.imshow("masked_image", masked_image)
+
+        return masked_image
 
     def plothistogram(self, image):
         histogram = np.sum(image[image.shape[0]//2:, :], axis=0)
@@ -168,14 +173,13 @@ class line_tracing():
 
         return pts_mean
 
-    def move(self, meanPts):
-        quo_arr=meanPts.astype(int)
-        quo=quo_arr[0, 0]
+    def move(self, meanPts, right_lane_x):
         msg = Twist()
 
-        msg.linear.x=0.1
+        msg.linear.x=0.5
         # msg.angular.z=0.2
-        msg.angular.z=((quo-300)//450)/10
+        msg.angular.z=(-right_lane_x+115)/50
+        # rospy.loginfo((right_lane_x-115)/50)
         self.pub2.publish(msg)
 
     def callback(self, _data):
@@ -184,12 +188,14 @@ class line_tracing():
 
         # wrapped_img, minverse = self.wrapping(img)
 
-        w_f_img = self.camera_callback(img)
+        w_f_img, right_lane_x = self.camera_callback(img)
 
-        w_f_r_img = self.roi(w_f_img)
+        # w_f_r_img = self.roi(w_f_img)
         
-        ret, thresh = cv2.threshold(w_f_r_img, 160, 255, cv2.THRESH_BINARY)
+        ret, thresh = cv2.threshold(w_f_img, 160, 255, cv2.THRESH_BINARY)
         
+        cv2.imshow('test', w_f_img)
+
         leftbase, rightbase = self.plothistogram(thresh)
 
         draw_info = self.slide_window_search(thresh, leftbase, rightbase)
@@ -197,7 +203,7 @@ class line_tracing():
         meanPts = self.how_much_curved(draw_info)
         # rospy.loginfo(meanPts)
 
-        self.move(meanPts)
+        self.move(meanPts, right_lane_x)
 
         # print('here')
         # self.pub1.publish('test')
