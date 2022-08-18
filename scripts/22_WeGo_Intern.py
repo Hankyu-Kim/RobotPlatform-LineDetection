@@ -10,7 +10,8 @@ import cv2 # to deal with video (=computer vision)
 import numpy as np # to deal with detail pixel, we used numpy array
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-you have to activate camera and limo command mode setting
+<<<you have to activate camera and limo command mode setting>>>
+
 1.  roslaunch astra_camera dabai_u3.launch 
 (another terminal)
 2.  roslaunch limo_base limo_base.launch 
