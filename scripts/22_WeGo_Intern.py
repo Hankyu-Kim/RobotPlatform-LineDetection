@@ -8,21 +8,26 @@ from geometry_msgs.msg import Twist # topic type is Twist which is including vec
 from cv_bridge import CvBridge # rosimage -> opencv image
 import cv2 # to deal with video (=computer vision)
 import numpy as np # to deal with detail pixel, we used numpy array
+from sensor_msgs.msg import LaserScan
+import math
+import time
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-<<<you have to activate camera and limo command mode setting>>>
-
+you have to activate camera and limo command mode setting
 1.  roslaunch astra_camera dabai_u3.launch 
 (another terminal)
-2.  roslaunch limo_base limo_base.launch 
+2.  roslaunch limo_bringup limo_start.launch
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 class line_tracing():
     def __init__(self): # to set initial value
+        self.sub_ls = rospy.Subscriber("/scan", LaserScan, self.lidar_callback)
         self.img_sub = rospy.Subscriber("/camera/rgb/image_rect_color/compressed", CompressedImage, self.callback)
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
 
         self.bridge = CvBridge()
+
+        self.mode = True
 
         self.lower_lane=np.array([0, 143, 104]) #HSV_filter variables
         self.upper_lane =np.array([138, 255, 255])
@@ -38,6 +43,24 @@ class line_tracing():
         self.source = np.float32([self.topleft, self.topright, self.bottomleft, self.bottomright])
         self.destination = np.float32([self.topleft2, self.topright2, self.bottomleft2, self.bottomright2])
 
+    def lidar_callback(self, _data):
+        '''
+            실제 라이다 데이터를 받아서 동작하는 부분
+            라이다가 측정되는 각도 계산(Radian 및 Degree)
+            측정된 데이터 중, 위험 범위 안에 들어 있는 점의 수를 카운팅
+            카운팅된 점의 수가 기준 이상이면, 위험 메시지 전달
+        '''
+        cnt = 0
+        angle_rad = [_data.angle_min + i * _data.angle_increment for i, _ in enumerate(_data.ranges)]
+        angle_deg = [180 / math.pi * angle for angle in angle_rad]
+        for i, angle in enumerate(angle_deg):
+            if -1 <= angle <= 1 and 0.0 < _data.ranges[i] < 1.0:
+                cnt += 1
+            if cnt >= 2:
+                self.mode = False
+            else:
+                self.mode = True
+    
     def wrapping(self, image): # we will not gonna use wrapping because of delay
         (h, w) = (image.shape[0], image.shape[1])
 
@@ -158,17 +181,24 @@ class line_tracing():
         gradient = round((-ltx[0]+160)/320, 1)
 
         msg.linear.x=0.5
-        # msg.angular.z=0.2
+        # msg.angular.z=1.0
         # msg.angular.z=(-right_lane_x+70)/50 # dot tracing
         # rospy.loginfo((right_lane_x-70)/50)
         msg.angular.z=gradient #line_tracing
         # rospy.loginfo(gradient)
         self.vel_pub.publish(msg)
 
+    def stop(self):
+        msg = Twist()
+        msg.linear.x=0.0
+        msg.angular.z=0.0
+        self.vel_pub.publish(msg)
+        # time.sleep(1)
+
     def callback(self, _data):
 
         img = self.bridge.compressed_imgmsg_to_cv2(_data, desired_encoding='passthrough')
-
+        cv2.imshow('', img)
         # w_img, minverse = self.wrapping(img)
 
         w_f_img, right_lane_x = self.HSV_filter(img)
@@ -183,7 +213,10 @@ class line_tracing():
 
         ltx = self.slide_window_search(thresh, leftbase, rightbase)
 
-        self.move(ltx, right_lane_x)
+        if self.mode == True:
+            self.move(ltx, right_lane_x)
+        elif self.mode == False:
+            self.stop()
 
 def run():
     rospy.init_node("line_tracing_example")
