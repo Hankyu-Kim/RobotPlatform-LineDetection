@@ -9,6 +9,8 @@
 <br/>
 <br/>
 
+## What is LiDAR??
+
 ![LiDAR](https://user-images.githubusercontent.com/108254705/186352724-907a4902-391f-4c5c-98fe-27b1494014a3.jpg)
 
 ### :arrow_right: LiDAR sensor keeps rotating rapidly and detect obstacle nearby.
