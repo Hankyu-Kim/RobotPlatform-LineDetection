@@ -1,13 +1,4 @@
-![wego](https://user-images.githubusercontent.com/108254705/186351817-5becc3a2-193c-42ba-bfb1-c69a68793806.jpg)
-
-# this is self-driving project using LIMO platform by ros
-
-<br/>
-<br/>
-<br/>
-<br/>
-
-# LIMO robot
+# Hardware : LIMO robot
 
 ![LIMO](https://user-images.githubusercontent.com/108254705/186352378-ec45f209-4c7a-4a15-9984-02d90ca82962.jpg)
 
