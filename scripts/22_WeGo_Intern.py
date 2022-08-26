@@ -48,9 +48,9 @@ class line_tracing():
         angle_rad = [_data.angle_min + i * _data.angle_increment for i, _ in enumerate(_data.ranges)]
         angle_deg = [180 / math.pi * angle for angle in angle_rad]
         for i, angle in enumerate(angle_deg):
-            if -1 <= angle <= 1 and 0.0 < _data.ranges[i] < 1.0:
+            if -15 <= angle <= 15 and 0.0 < _data.ranges[i] < 1.0:
                 cnt += 1
-            if cnt >= 2:
+            if cnt >= 5:
                 self.mode = False
             else:
                 self.mode = True
