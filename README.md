@@ -73,4 +73,4 @@
 <br/>
 <br/>
 
-Any question, contact : tim4688@naver.com
+Any question, contact me : tim4688@naver.com
